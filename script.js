@@ -1,23 +1,8 @@
 // ===================== المتغيرات العامة =====================
 let map;
 let currentAnalysis = null;
-let cityData = null;
 
-// ===================== تحميل البيانات =====================
-
-async function loadData() {
-    try {
-        const response = await fetch('data.json');
-        cityData = await response.json();
-        console.log('✅ تم تحميل البيانات بنجاح');
-    } catch (error) {
-        console.error('❌ فشل تحميل البيانات:', error);
-    }
-}
-
-loadData();
-
-// ===================== تحليل المدينة =====================
+// ===================== الدوال الرئيسية =====================
 
 async function analyzeCity() {
     const cityName = document.getElementById('cityInput').value.trim();
@@ -29,62 +14,122 @@ async function analyzeCity() {
     document.getElementById('loading').style.display = 'inline';
 
     try {
-        if (!cityData) {
-            await loadData();
+        // 1. جلب إحداثيات المدينة
+        const coords = await getCityCoordinates(cityName);
+        if (!coords) {
+            alert('❌ المدينة غير موجودة. تأكد من كتابة الاسم بشكل صحيح.');
+            document.getElementById('loading').style.display = 'none';
+            return;
         }
 
-        // البحث عن المدينة في البيانات
-        let foundCity = null;
-        let foundKey = null;
+        // 2. جلب البيانات الحقيقية من OpenStreetMap (بدون JSON)
+        const data = await fetchCityData(coords.lat, coords.lon);
 
-        for (const key in cityData) {
-            if (cityName.toLowerCase().includes(key.toLowerCase()) || 
-                key.toLowerCase().includes(cityName.toLowerCase())) {
-                foundCity = cityData[key];
-                foundKey = key;
-                break;
-            }
-        }
-
-        if (!foundCity) {
-            // استخدام القاهرة كافتراضي
-            foundCity = cityData.cairo;
-            foundKey = 'cairo';
-        }
-
-        // تحويل البيانات لشكل التحليل
-        const analysis = {
-            schools: foundCity.schools.map(p => ({ ...p, tags: { amenity: 'school' } })),
-            hospitals: foundCity.hospitals.map(p => ({ ...p, tags: { amenity: 'hospital' } })),
-            clinics: [],
-            shops: foundCity.shops.map(p => ({ ...p, tags: { shop: 'yes' } })),
-            mosques: foundCity.mosques.map(p => ({ ...p, tags: { amenity: 'place_of_worship' } }))
-        };
-
+        // 3. تحليل البيانات
+        const analysis = analyzeData(data);
         currentAnalysis = analysis;
 
-        // إحداثيات وسط المدينة
-        const coords = getCityCoords(foundKey);
-
+        // 4. عرض النتائج
         displayResults(analysis, coords, cityName);
         generateRecommendations(analysis);
 
         document.getElementById('loading').style.display = 'none';
     } catch (error) {
         console.error('خطأ:', error);
-        alert('❌ حدث خطأ أثناء التحليل: ' + error.message);
+        alert('❌ حدث خطأ أثناء جلب البيانات: ' + error.message + '\nتأكد من اتصال الإنترنت.');
         document.getElementById('loading').style.display = 'none';
     }
 }
 
-// ===================== إحداثيات المدن =====================
+// ===================== جلب إحداثيات المدينة =====================
 
-function getCityCoords(cityKey) {
-    const coords = {
-        'cairo': { lat: 30.0444, lon: 31.2357 },
-        'alexandria': { lat: 31.2001, lon: 29.9187 }
+async function getCityCoordinates(cityName) {
+    const url =
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.length === 0) return null;
+
+    return {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon),
+        displayName: data[0].display_name
     };
-    return coords[cityKey] || coords.cairo;
+}
+
+// ===================== جلب البيانات من Overpass API عبر Proxy =====================
+
+async function fetchCityData(lat, lon) {
+    const radius = 3000; // 3 كيلومتر
+
+    const query = `[out:json][timeout:25];
+    (
+        node["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
+        way["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
+        relation["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
+        node["shop"](around:${radius},${lat},${lon});
+        way["shop"](around:${radius},${lat},${lon});
+        relation["shop"](around:${radius},${lat},${lon});
+    );
+    out center;`;
+
+    const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(overpassUrl)}`;
+
+    const response = await fetch(proxyUrl);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+}
+
+// ===================== تحليل البيانات =====================
+
+function analyzeData(data) {
+    const analysis = {
+        schools: [],
+        hospitals: [],
+        clinics: [],
+        shops: [],
+        mosques: []
+    };
+
+    if (!data.elements || data.elements.length === 0) {
+        return analysis;
+    }
+
+    data.elements.forEach(el => {
+        if (!el.tags) return;
+
+        const tags = el.tags;
+        const amenity = tags.amenity || '';
+        const shop = tags.shop || '';
+
+        let lat = el.lat;
+        let lon = el.lon;
+        if (!lat && el.center) {
+            lat = el.center.lat;
+            lon = el.center.lon;
+        }
+        if (!lat) return;
+
+        const name = tags.name || tags['name:ar'] || tags['name:en'] || 'بدون اسم';
+
+        if (amenity === 'school' || amenity === 'kindergarten' || amenity === 'university' || amenity === 'college') {
+            analysis.schools.push({ lat, lon, name, tags });
+        } else if (amenity === 'hospital') {
+            analysis.hospitals.push({ lat, lon, name, tags });
+        } else if (amenity === 'clinic') {
+            analysis.clinics.push({ lat, lon, name, tags });
+        } else if (amenity === 'place_of_worship') {
+            analysis.mosques.push({ lat, lon, name, tags });
+        } else if (shop) {
+            analysis.shops.push({ lat, lon, name, tags });
+        }
+    });
+
+    return analysis;
 }
 
 // ===================== عرض النتائج =====================
@@ -115,6 +160,7 @@ function displayResults(analysis, coords, cityName) {
     const allPlaces = [
         ...analysis.schools.map(p => ({ ...p, type: 'مدرسة', icon: '🏫' })),
         ...analysis.hospitals.map(p => ({ ...p, type: 'مستشفى', icon: '🏥' })),
+        ...analysis.clinics.map(p => ({ ...p, type: 'عيادة', icon: '🏥' })),
         ...analysis.shops.map(p => ({ ...p, type: 'محل', icon: '🛒' })),
         ...analysis.mosques.map(p => ({ ...p, type: 'مسجد', icon: '🕌' }))
     ];
@@ -137,7 +183,7 @@ function displayResults(analysis, coords, cityName) {
 
     // ===== الخريطة =====
     if (map) map.remove();
-    map = L.map('map').setView([coords.lat, coords.lon], 13);
+    map = L.map('map').setView([coords.lat, coords.lon], 14);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
@@ -146,6 +192,7 @@ function displayResults(analysis, coords, cityName) {
     const markers = [
         { data: analysis.schools, color: '#1976d2', label: 'مدرسة', icon: '🏫' },
         { data: analysis.hospitals, color: '#d32f2f', label: 'مستشفى', icon: '🏥' },
+        { data: analysis.clinics, color: '#f57c00', label: 'عيادة', icon: '🏥' },
         { data: analysis.shops, color: '#f9a825', label: 'محل', icon: '🛒' },
         { data: analysis.mosques, color: '#388e3c', label: 'مسجد', icon: '🕌' }
     ];
@@ -173,6 +220,7 @@ function displayResults(analysis, coords, cityName) {
             <h4 style="margin:0 0 8px;">🗺️ الخدمات</h4>
             <p style="margin:4px 0;"><span style="color:#1976d2;">●</span> مدارس 🏫</p>
             <p style="margin:4px 0;"><span style="color:#d32f2f;">●</span> مستشفيات 🏥</p>
+            <p style="margin:4px 0;"><span style="color:#f57c00;">●</span> عيادات 🏥</p>
             <p style="margin:4px 0;"><span style="color:#f9a825;">●</span> محلات 🛒</p>
             <p style="margin:4px 0;"><span style="color:#388e3c;">●</span> مساجد 🕌</p>
         `;
