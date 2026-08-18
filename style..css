@@ -1,3 +1,4 @@
+/* ===================== الأساسيات ===================== */
 * {
     margin: 0;
     padding: 0;
@@ -6,70 +7,216 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: linear-gradient(135deg, #e0e7ff, #f0f2f5);
+    background: #0a0e1a;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
+    color: #e0e0e0;
 }
 
-.container {
-    max-width: 1200px;
+/* ===================== شاشة الدخول ===================== */
+#splashScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    background: rgba(255, 255, 255, 0.85);
+    height: 100%;
+    background: linear-gradient(135deg, #0a0e1a 0%, #1a2332 50%, #0d1b2a 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 1s ease;
+}
+
+.splash-content {
+    text-align: center;
+    padding: 40px;
+    max-width: 500px;
+}
+
+.splash-icon {
+    font-size: 72px;
+    margin-bottom: 20px;
+    animation: float 3s ease-in-out infinite;
+}
+
+.splash-content h1 {
+    font-size: 32px;
+    background: linear-gradient(135deg, #4fc3f7, #00e5ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+
+.splash-content p {
+    color: #90a4ae;
+    font-size: 16px;
+    margin-bottom: 30px;
+}
+
+.splash-loader {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(79, 195, 247, 0.2);
+    border-top-color: #4fc3f7;
+    border-radius: 50%;
+    margin: 0 auto 30px;
+    animation: spin 1s linear infinite;
+}
+
+.splash-btn {
+    background: linear-gradient(135deg, #4fc3f7, #00e5ff);
+    color: #0a0e1a;
+    border: none;
+    padding: 14px 40px;
+    border-radius: 30px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(79, 195, 247, 0.3);
+}
+
+.splash-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(79, 195, 247, 0.5);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ===================== التطبيق الرئيسي ===================== */
+.container {
+    max-width: 1400px;
+    width: 100%;
+    background: rgba(26, 35, 50, 0.95);
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     border-radius: 24px;
     padding: 30px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(79, 195, 247, 0.1);
 }
 
 header {
     text-align: center;
-    margin-bottom: 30px;
+    padding: 20px 0;
+    border-bottom: 1px solid rgba(79, 195, 247, 0.1);
+    margin-bottom: 20px;
 }
 
-header h1 {
-    font-size: 36px;
-    color: #0d47a1;
+.header-content h1 {
+    font-size: 32px;
     font-weight: 700;
+    background: linear-gradient(135deg, #4fc3f7, #00e5ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-header p {
-    font-size: 16px;
-    color: #555;
+.header-content p {
+    color: #90a4ae;
     margin-top: 5px;
+    font-size: 14px;
 }
 
+/* ===================== البحث المتقدم ===================== */
 #searchSection {
+    margin-bottom: 20px;
+}
+
+.search-box {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    align-items: center;
     justify-content: center;
-    margin-bottom: 30px;
 }
 
-#searchSection input {
+.search-input-wrapper {
     flex: 1;
-    min-width: 250px;
+    min-width: 280px;
+    position: relative;
+}
+
+.search-input-wrapper input {
+    width: 100%;
     padding: 14px 20px;
-    border: 2px solid #ddd;
+    border: 2px solid #2a3a50;
     border-radius: 12px;
     font-size: 16px;
+    background: #1a2332;
+    color: #e0e0e0;
     transition: 0.3s;
-    background: white;
 }
 
-#searchSection input:focus {
-    border-color: #1976d2;
+.search-input-wrapper input:focus {
+    border-color: #4fc3f7;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
+    box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.2);
 }
 
-#searchSection button {
-    padding: 14px 28px;
+.search-input-wrapper input::placeholder {
+    color: #546e7a;
+}
+
+/* ===== نتائج البحث التلقائي ===== */
+.autocomplete-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1a2332;
+    border: 1px solid #2a3a50;
+    border-radius: 0 0 12px 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.autocomplete-results.active {
+    display: block;
+}
+
+.autocomplete-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(79, 195, 247, 0.05);
+    transition: 0.2s;
+    color: #e0e0e0;
+}
+
+.autocomplete-item:hover {
+    background: rgba(79, 195, 247, 0.1);
+}
+
+.autocomplete-item .place-name {
+    font-weight: 600;
+    color: #4fc3f7;
+}
+
+.autocomplete-item .place-details {
+    font-size: 12px;
+    color: #78909c;
+    display: block;
+}
+
+.search-box button {
+    padding: 14px 24px;
     border: none;
     border-radius: 12px;
     font-size: 16px;
@@ -78,83 +225,140 @@ header p {
     font-weight: 600;
 }
 
-#searchSection button:first-of-type {
-    background: #1976d2;
-    color: white;
+.search-box button:first-of-type {
+    background: linear-gradient(135deg, #4fc3f7, #00e5ff);
+    color: #0a0e1a;
 }
 
-#searchSection button:first-of-type:hover {
-    background: #0d47a1;
+.search-box button:first-of-type:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(25, 118, 210, 0.3);
+    box-shadow: 0 8px 25px rgba(79, 195, 247, 0.3);
 }
 
 .btn-location {
-    background: #4CAF50;
-    color: white;
+    background: #2a3a50;
+    color: #e0e0e0;
 }
 
 .btn-location:hover {
-    background: #388E3C;
+    background: #3a4a60;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+}
+
+.btn-clear {
+    background: #2a3a50;
+    color: #e0e0e0;
+}
+
+.btn-clear:hover {
+    background: #ff6b6b;
+    color: white;
+    transform: translateY(-2px);
 }
 
 #loading {
-    font-weight: bold;
-    color: #1976d2;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
+    display: block;
+    text-align: center;
+    color: #4fc3f7;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+/* ===================== الخريطة ===================== */
+#map {
+    width: 100%;
+    height: 500px;
+    border-radius: 16px;
+    margin: 15px 0;
+    border: 1px solid rgba(79, 195, 247, 0.1);
+    background: #0a0e1a;
+    position: relative;
+}
+
+.leaflet-control-zoom a {
+    background: #1a2332 !important;
+    color: #e0e0e0 !important;
+    border-color: #2a3a50 !important;
+}
+
+/* ===== تخصيص أداة المسار ===== */
+.leaflet-routing-container {
+    background: #1a2332 !important;
+    color: #e0e0e0 !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(79, 195, 247, 0.1) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-routing-alt {
+    background: #0a0e1a !important;
+    color: #e0e0e0 !important;
+}
+
+.leaflet-routing-alt tr td {
+    border-bottom: 1px solid rgba(79, 195, 247, 0.05) !important;
+}
+
+.leaflet-routing-alt .leaflet-routing-alt-minimized {
+    background: #1a2332 !important;
+    color: #4fc3f7 !important;
+}
+
+/* ===================== النتائج ===================== */
+.results-header {
+    background: #1a2332;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid rgba(79, 195, 247, 0.1);
+}
+
+#cityName {
+    color: #e0e0e0;
+    font-size: 22px;
+    margin-bottom: 15px;
 }
 
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 15px;
-    margin: 20px 0;
 }
 
 .stat-card {
-    background: white;
+    background: #0a0e1a;
     padding: 20px;
-    border-radius: 16px;
+    border-radius: 12px;
     text-align: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    transition: 0.3s;
-    border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(79, 195, 247, 0.05);
 }
 
 .stat-card h3 {
     font-size: 14px;
-    color: #666;
+    color: #78909c;
+    margin-bottom: 5px;
 }
 
 .stat-card p {
     font-size: 32px;
     font-weight: bold;
-    color: #0d47a1;
+    background: linear-gradient(135deg, #4fc3f7, #00e5ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-#map {
-    width: 100%;
-    height: 450px;
-    border-radius: 16px;
-    margin: 20px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
+/* ===================== التفاصيل ===================== */
 #detailsSection {
-    background: white;
+    background: #1a2332;
     padding: 20px;
     border-radius: 16px;
     margin: 20px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(79, 195, 247, 0.1);
+}
+
+#detailsSection h3 {
+    color: #e0e0e0;
+    margin-bottom: 15px;
 }
 
 #detailsContent {
@@ -169,21 +373,23 @@ header p {
 }
 
 #detailsContent th {
-    background: #0d47a1;
-    color: white;
+    background: #0a0e1a;
+    color: #4fc3f7;
     padding: 12px;
     text-align: right;
     position: sticky;
     top: 0;
+    border-bottom: 2px solid #4fc3f7;
 }
 
 #detailsContent td {
     padding: 10px 12px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid rgba(79, 195, 247, 0.05);
+    color: #e0e0e0;
 }
 
 #detailsContent tr:hover {
-    background: #f5f7ff;
+    background: rgba(79, 195, 247, 0.05);
 }
 
 .type-badge {
@@ -195,12 +401,13 @@ header p {
     font-weight: 600;
 }
 
+/* ===================== التوصيات ===================== */
 #recommendations {
-    background: white;
+    background: #1a2332;
     padding: 20px;
     border-radius: 16px;
     margin: 20px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(79, 195, 247, 0.1);
 }
 
 #recommendations ul {
@@ -210,15 +417,17 @@ header p {
 
 #recommendations li {
     padding: 12px 16px;
-    background: #e8f0fe;
+    background: #0a0e1a;
     margin: 8px 0;
     border-radius: 12px;
-    border-right: 4px solid #1976d2;
+    border-right: 4px solid #4fc3f7;
     font-weight: 500;
+    color: #e0e0e0;
 }
 
+/* ===================== أزرار ===================== */
 .btn-pdf {
-    background: #d32f2f;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
     color: white;
     padding: 14px 30px;
     border: none;
@@ -232,16 +441,34 @@ header p {
 }
 
 .btn-pdf:hover {
-    background: #b71c1c;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(211, 47, 47, 0.3);
+    box-shadow: 0 8px 25px rgba(238, 90, 36, 0.3);
 }
 
+/* ===================== فوتر ===================== */
 footer {
     text-align: center;
     margin-top: 30px;
-    color: #888;
-    font-size: 14px;
-    border-top: 1px solid #eee;
     padding-top: 20px;
+    border-top: 1px solid rgba(79, 195, 247, 0.1);
+    color: #546e7a;
+    font-size: 14px;
+}
+
+/* ===================== سكرول ===================== */
+#detailsContent::-webkit-scrollbar,
+.autocomplete-results::-webkit-scrollbar {
+    width: 6px;
+}
+
+#detailsContent::-webkit-scrollbar-track,
+.autocomplete-results::-webkit-scrollbar-track {
+    background: #0a0e1a;
+    border-radius: 10px;
+}
+
+#detailsContent::-webkit-scrollbar-thumb,
+.autocomplete-results::-webkit-scrollbar-thumb {
+    background: #4fc3f7;
+    border-radius: 10px;
 }

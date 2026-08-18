@@ -1,8 +1,105 @@
 // ===================== المتغيرات العامة =====================
 let map;
-let currentAnalysis = null;
+let routingControl = null;
+let cityData = null;
+let selectedCoords = null;
+let autocompleteTimeout = null;
 
-// ===================== الدوال الرئيسية =====================
+// ===================== شاشة الدخول =====================
+
+function hideSplash() {
+    document.getElementById('splashScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    initMap();
+    loadData();
+}
+
+// ===================== تهيئة الخريطة =====================
+
+function initMap() {
+    map = L.map('map', {
+        zoomControl: true,
+        center: [30.0444, 31.2357],
+        zoom: 12
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+        minZoom: 3
+    }).addTo(map);
+}
+
+// ===================== تحميل البيانات =====================
+
+async function loadData() {
+    try {
+        const response = await fetch('data.json');
+        cityData = await response.json();
+        console.log('✅ تم تحميل البيانات بنجاح');
+        document.getElementById('cityInput').value = 'Cairo';
+        setTimeout(() => analyzeCity(), 300);
+    } catch (error) {
+        console.error('❌ فشل تحميل البيانات:', error);
+        alert('❌ فشل تحميل البيانات. تأكد من اتصال الإنترنت.');
+    }
+}
+
+// ===================== البحث التلقائي (Autocomplete) =====================
+
+document.getElementById('cityInput').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsContainer = document.getElementById('autocompleteResults');
+
+    if (query.length < 2) {
+        resultsContainer.classList.remove('active');
+        return;
+    }
+
+    clearTimeout(autocompleteTimeout);
+    autocompleteTimeout = setTimeout(async () => {
+        try {
+            const url =
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&accept-language=ar`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            resultsContainer.innerHTML = '';
+            if (data.length === 0) {
+                resultsContainer.classList.remove('active');
+                return;
+            }
+
+            data.forEach(place => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                div.innerHTML = `
+                    <span class="place-name">${place.display_name.split(',')[0]}</span>
+                    <span class="place-details">${place.display_name}</span>
+                `;
+                div.onclick = function() {
+                    document.getElementById('cityInput').value = place.display_name;
+                    resultsContainer.classList.remove('active');
+                    selectedCoords = {
+                        lat: parseFloat(place.lat),
+                        lon: parseFloat(place.lon)
+                    };
+                    // التمركز على المكان
+                    map.flyTo([selectedCoords.lat, selectedCoords.lon], 14);
+                    // تحليل المكان
+                    analyzeCity();
+                };
+                resultsContainer.appendChild(div);
+            });
+
+            resultsContainer.classList.add('active');
+        } catch (error) {
+            console.error('خطأ في البحث:', error);
+        }
+    }, 300);
+});
+
+// ===================== تحليل المدينة =====================
 
 async function analyzeCity() {
     const cityName = document.getElementById('cityInput').value.trim();
@@ -11,125 +108,59 @@ async function analyzeCity() {
         return;
     }
 
-    document.getElementById('loading').style.display = 'inline';
+    document.getElementById('loading').style.display = 'block';
 
     try {
-        // 1. جلب إحداثيات المدينة
-        const coords = await getCityCoordinates(cityName);
-        if (!coords) {
-            alert('❌ المدينة غير موجودة. تأكد من كتابة الاسم بشكل صحيح.');
-            document.getElementById('loading').style.display = 'none';
-            return;
+        if (!cityData) {
+            await loadData();
         }
 
-        // 2. جلب البيانات الحقيقية من OpenStreetMap (بدون JSON)
-        const data = await fetchCityData(coords.lat, coords.lon);
+        let foundCity = null;
+        let foundKey = null;
 
-        // 3. تحليل البيانات
-        const analysis = analyzeData(data);
-        currentAnalysis = analysis;
+        for (const key in cityData) {
+            if (cityName.toLowerCase().includes(key.toLowerCase()) ||
+                key.toLowerCase().includes(cityName.toLowerCase())) {
+                foundCity = cityData[key];
+                foundKey = key;
+                break;
+            }
+        }
 
-        // 4. عرض النتائج
+        if (!foundCity) {
+            foundCity = cityData.cairo;
+            foundKey = 'cairo';
+        }
+
+        const analysis = {
+            schools: foundCity.schools.map(p => ({ ...p, tags: { amenity: 'school' } })),
+            hospitals: foundCity.hospitals.map(p => ({ ...p, tags: { amenity: 'hospital' } })),
+            clinics: [],
+            shops: foundCity.shops.map(p => ({ ...p, tags: { shop: 'yes' } })),
+            mosques: foundCity.mosques.map(p => ({ ...p, tags: { amenity: 'place_of_worship' } }))
+        };
+
+        const coords = selectedCoords || getCityCoords(foundKey);
         displayResults(analysis, coords, cityName);
         generateRecommendations(analysis);
 
         document.getElementById('loading').style.display = 'none';
     } catch (error) {
         console.error('خطأ:', error);
-        alert('❌ حدث خطأ أثناء جلب البيانات: ' + error.message + '\nتأكد من اتصال الإنترنت.');
+        alert('❌ حدث خطأ أثناء التحليل: ' + error.message);
         document.getElementById('loading').style.display = 'none';
     }
 }
 
-// ===================== جلب إحداثيات المدينة =====================
+// ===================== إحداثيات المدن =====================
 
-async function getCityCoordinates(cityName) {
-    const url =
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.length === 0) return null;
-
-    return {
-        lat: parseFloat(data[0].lat),
-        lon: parseFloat(data[0].lon),
-        displayName: data[0].display_name
+function getCityCoords(cityKey) {
+    const coords = {
+        'cairo': { lat: 30.0444, lon: 31.2357 },
+        'alexandria': { lat: 31.2001, lon: 29.9187 },
+        'menouf': { lat: 30.4667, lon: 30.9333 }
     };
-}
-
-// ===================== جلب البيانات من Overpass API عبر Proxy =====================
-
-async function fetchCityData(lat, lon) {
-    const radius = 3000; // 3 كيلومتر
-
-    const query = `[out:json][timeout:25];
-    (
-        node["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
-        way["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
-        relation["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
-        node["shop"](around:${radius},${lat},${lon});
-        way["shop"](around:${radius},${lat},${lon});
-        relation["shop"](around:${radius},${lat},${lon});
-    );
-    out center;`;
-
-    const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(overpassUrl)}`;
-
-    const response = await fetch(proxyUrl);
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-}
-
-// ===================== تحليل البيانات =====================
-
-function analyzeData(data) {
-    const analysis = {
-        schools: [],
-        hospitals: [],
-        clinics: [],
-        shops: [],
-        mosques: []
-    };
-
-    if (!data.elements || data.elements.length === 0) {
-        return analysis;
-    }
-
-    data.elements.forEach(el => {
-        if (!el.tags) return;
-
-        const tags = el.tags;
-        const amenity = tags.amenity || '';
-        const shop = tags.shop || '';
-
-        let lat = el.lat;
-        let lon = el.lon;
-        if (!lat && el.center) {
-            lat = el.center.lat;
-            lon = el.center.lon;
-        }
-        if (!lat) return;
-
-        const name = tags.name || tags['name:ar'] || tags['name:en'] || 'بدون اسم';
-
-        if (amenity === 'school' || amenity === 'kindergarten' || amenity === 'university' || amenity === 'college') {
-            analysis.schools.push({ lat, lon, name, tags });
-        } else if (amenity === 'hospital') {
-            analysis.hospitals.push({ lat, lon, name, tags });
-        } else if (amenity === 'clinic') {
-            analysis.clinics.push({ lat, lon, name, tags });
-        } else if (amenity === 'place_of_worship') {
-            analysis.mosques.push({ lat, lon, name, tags });
-        } else if (shop) {
-            analysis.shops.push({ lat, lon, name, tags });
-        }
-    });
-
-    return analysis;
+    return coords[cityKey] || coords.cairo;
 }
 
 // ===================== عرض النتائج =====================
@@ -153,6 +184,7 @@ function displayResults(analysis, coords, cityName) {
                 <th>النوع</th>
                 <th>خط العرض</th>
                 <th>خط الطول</th>
+                <th>مسار</th>
             </tr>
         </thead>
         <tbody>`;
@@ -160,7 +192,6 @@ function displayResults(analysis, coords, cityName) {
     const allPlaces = [
         ...analysis.schools.map(p => ({ ...p, type: 'مدرسة', icon: '🏫' })),
         ...analysis.hospitals.map(p => ({ ...p, type: 'مستشفى', icon: '🏥' })),
-        ...analysis.clinics.map(p => ({ ...p, type: 'عيادة', icon: '🏥' })),
         ...analysis.shops.map(p => ({ ...p, type: 'محل', icon: '🛒' })),
         ...analysis.mosques.map(p => ({ ...p, type: 'مسجد', icon: '🕌' }))
     ];
@@ -175,71 +206,169 @@ function displayResults(analysis, coords, cityName) {
                 <td><span class="type-badge" style="background:${getColor(p.type)}">${p.icon} ${p.type}</span></td>
                 <td>${p.lat.toFixed(5)}</td>
                 <td>${p.lon.toFixed(5)}</td>
+                <td><button onclick="getRoute(${p.lat}, ${p.lon}, '${p.name}')" class="btn-route">🗺️ مسار</button></td>
             </tr>`;
         });
         html += `</tbody></table>`;
         detailsDiv.innerHTML = html;
     }
 
-    // ===== الخريطة =====
-    if (map) map.remove();
-    map = L.map('map').setView([coords.lat, coords.lon], 14);
+    // ===== تحديث الخريطة =====
+    map.flyTo([coords.lat, coords.lon], 13);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-
+    // ===== إضافة العلامات =====
     const markers = [
-        { data: analysis.schools, color: '#1976d2', label: 'مدرسة', icon: '🏫' },
-        { data: analysis.hospitals, color: '#d32f2f', label: 'مستشفى', icon: '🏥' },
-        { data: analysis.clinics, color: '#f57c00', label: 'عيادة', icon: '🏥' },
-        { data: analysis.shops, color: '#f9a825', label: 'محل', icon: '🛒' },
-        { data: analysis.mosques, color: '#388e3c', label: 'مسجد', icon: '🕌' }
+        { data: analysis.schools, color: '#4fc3f7', label: 'مدرسة', icon: '🏫' },
+        { data: analysis.hospitals, color: '#ff6b6b', label: 'مستشفى', icon: '🏥' },
+        { data: analysis.shops, color: '#ffd93d', label: 'محل', icon: '🛒' },
+        { data: analysis.mosques, color: '#6bcb77', label: 'مسجد', icon: '🕌' }
     ];
 
     markers.forEach(group => {
         group.data.forEach(el => {
-            const marker = L.marker([el.lat, el.lon]).addTo(map);
+            const customIcon = L.divIcon({
+                html: `<div style="font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));">${group.icon}</div>`,
+                className: '',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            const marker = L.marker([el.lat, el.lon], { icon: customIcon }).addTo(map);
             marker.bindPopup(`
                 <b>${el.name}</b><br>
                 ${group.icon} النوع: ${group.label}<br>
-                📍 ${el.lat.toFixed(5)}, ${el.lon.toFixed(5)}
+                📍 ${el.lat.toFixed(5)}, ${el.lon.toFixed(5)}<br>
+                <button onclick="getRoute(${el.lat}, ${el.lon}, '${el.name}')">🗺️ احصل على المسار</button>
             `);
         });
     });
 
-    // وسيلة إيضاح
+    // ===== وسيلة إيضاح =====
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'info legend');
-        div.style.background = 'white';
+        div.style.background = '#1a2332';
         div.style.padding = '12px 16px';
         div.style.borderRadius = '12px';
-        div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+        div.style.border = '1px solid rgba(79,195,247,0.1)';
+        div.style.color = '#e0e0e0';
         div.innerHTML = `
-            <h4 style="margin:0 0 8px;">🗺️ الخدمات</h4>
-            <p style="margin:4px 0;"><span style="color:#1976d2;">●</span> مدارس 🏫</p>
-            <p style="margin:4px 0;"><span style="color:#d32f2f;">●</span> مستشفيات 🏥</p>
-            <p style="margin:4px 0;"><span style="color:#f57c00;">●</span> عيادات 🏥</p>
-            <p style="margin:4px 0;"><span style="color:#f9a825;">●</span> محلات 🛒</p>
-            <p style="margin:4px 0;"><span style="color:#388e3c;">●</span> مساجد 🕌</p>
+            <h4 style="margin:0 0 8px;color:#4fc3f7;">🗺️ الخدمات</h4>
+            <p style="margin:4px 0;"><span style="color:#4fc3f7;">●</span> مدارس 🏫</p>
+            <p style="margin:4px 0;"><span style="color:#ff6b6b;">●</span> مستشفيات 🏥</p>
+            <p style="margin:4px 0;"><span style="color:#ffd93d;">●</span> محلات 🛒</p>
+            <p style="margin:4px 0;"><span style="color:#6bcb77;">●</span> مساجد 🕌</p>
         `;
         return div;
     };
     legend.addTo(map);
+}
 
-    setTimeout(() => map.invalidateSize(), 200);
+// ===================== تحديد المسار (Routing) =====================
+
+function getRoute(lat, lon, name) {
+    if (!navigator.geolocation) {
+        alert('❌ المتصفح لا يدعم تحديد الموقع');
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLat, userLon),
+                    L.latLng(lat, lon)
+                ],
+                routeWhileDragging: true,
+                reverseWaypoints: false,
+                showAlternatives: true,
+                altLineOptions: {
+                    styles: [
+                        { color: 'black', opacity: 0.15, weight: 9 },
+                        { color: 'white', opacity: 0.8, weight: 7 },
+                        { color: '#4fc3f7', opacity: 0.7, weight: 5 }
+                    ]
+                },
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                }),
+                language: 'ar',
+                lineOptions: {
+                    styles: [
+                        { color: '#4fc3f7', opacity: 1, weight: 5 }
+                    ]
+                }
+            }).addTo(map);
+
+            // عرض نافذة منبثقة للمسار
+            setTimeout(() => {
+                const popup = L.popup()
+                    .setLatLng([lat, lon])
+                    .setContent(`
+                        <b>${name}</b><br>
+                        🗺️ تم حساب المسار من موقعك<br>
+                        📍 المسافة: سيتم حسابها تلقائياً
+                    `)
+                    .openOn(map);
+            }, 1000);
+
+        },
+        error => {
+            alert('❌ فشل تحديد موقعك: ' + error.message + '\nسيتم استخدام موقع القاهرة كبداية.');
+            // استخدام القاهرة كبداية
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(30.0444, 31.2357),
+                    L.latLng(lat, lon)
+                ],
+                routeWhileDragging: true,
+                showAlternatives: true,
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                }),
+                language: 'ar',
+                lineOptions: {
+                    styles: [
+                        { color: '#4fc3f7', opacity: 1, weight: 5 }
+                    ]
+                }
+            }).addTo(map);
+        }
+    );
+}
+
+// ===================== مسح المسار =====================
+
+function clearRoute() {
+    if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+        alert('🗑️ تم مسح المسار');
+    } else {
+        alert('ℹ️ لا يوجد مسار نشط');
+    }
 }
 
 // ===================== دالة الألوان =====================
 
 function getColor(type) {
     const colors = {
-        'مدرسة': '#1976d2',
-        'مستشفى': '#d32f2f',
+        'مدرسة': '#4fc3f7',
+        'مستشفى': '#ff6b6b',
         'عيادة': '#f57c00',
-        'محل': '#f9a825',
-        'مسجد': '#388e3c'
+        'محل': '#ffd93d',
+        'مسجد': '#6bcb77'
     };
     return colors[type] || '#888';
 }
@@ -328,12 +457,17 @@ function generatePDF() {
 
 function getMyLocation() {
     if (navigator.geolocation) {
-        document.getElementById('loading').style.display = 'inline';
+        document.getElementById('loading').style.display = 'block';
         navigator.geolocation.getCurrentPosition(
             position => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                selectedCoords = { lat, lon };
                 document.getElementById('cityInput').value =
-                    `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
+                    `${lat.toFixed(5)}, ${lon.toFixed(5)} (موقعي)`;
+                map.flyTo([lat, lon], 14);
                 document.getElementById('loading').style.display = 'none';
+                // تحليل المنطقة
                 analyzeCity();
             },
             error => {
@@ -349,5 +483,5 @@ function getMyLocation() {
 // ===================== تحميل أولي =====================
 
 window.onload = function() {
-    document.getElementById('cityInput').value = 'Cairo';
+    // منع تشغيل التحميل التلقائي حتى يضغط المستخدم على زر البدء
 };

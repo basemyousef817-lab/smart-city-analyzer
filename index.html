@@ -3,36 +3,63 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>تحليل المدن الذكية - Smart City Analyzer</title>
+    <title>GIS Smart City Analyzer - خريطة تفاعلية</title>
+    <!-- CSS الخارجي -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
+
+    <!-- شاشة الدخول -->
+    <div id="splashScreen">
+        <div class="splash-content">
+            <div class="splash-icon">🌍</div>
+            <h1>GIS Smart City Analyzer</h1>
+            <p>نظام متكامل لتحليل المدن وتحديد المسارات</p>
+            <div class="splash-loader"></div>
+            <button onclick="hideSplash()" class="splash-btn">🚀 ابدأ الاستكشاف</button>
+        </div>
+    </div>
+
+    <!-- التطبيق الرئيسي -->
+    <div class="container" id="mainApp" style="display:none;">
         <header>
-            <h1>🏙️ تحليل المدن الذكية</h1>
-            <p>أدخل اسم مدينة لتحليلها واستخراج توصيات لتطويرها</p>
+            <div class="header-content">
+                <h1>🌍 GIS Smart City Analyzer</h1>
+                <p>ابحث عن أي مكان، حلل الخدمات، واحصل على المسار</p>
+            </div>
         </header>
 
         <main>
+            <!-- شريط البحث المتقدم -->
             <section id="searchSection">
-                <input type="text" id="cityInput" placeholder="مثال: Cairo, Nasr City, Alexandria" />
-                <button onclick="analyzeCity()">🔍 تحليل</button>
-                <button onclick="getMyLocation()" class="btn-location">📍 موقعي</button>
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="cityInput" placeholder="🔍 ابحث عن مدينة أو مكان..." />
+                        <div id="autocompleteResults" class="autocomplete-results"></div>
+                    </div>
+                    <button onclick="analyzeCity()">🔍 تحليل</button>
+                    <button onclick="getMyLocation()" class="btn-location">📍 موقعي</button>
+                    <button onclick="clearRoute()" class="btn-clear">🗑️ مسح المسار</button>
+                </div>
                 <span id="loading" style="display:none;">⏳ جاري التحميل...</span>
             </section>
 
+            <!-- الخريطة -->
+            <div id="map"></div>
+
+            <!-- لوحة النتائج -->
             <section id="resultsSection" style="display:none;">
-                <h2 id="cityName">نتائج التحليل</h2>
-
-                <div class="stats-grid">
-                    <div class="stat-card"><h3>🏫 المدارس</h3><p id="schoolCount">0</p></div>
-                    <div class="stat-card"><h3>🏥 المستشفيات</h3><p id="hospitalCount">0</p></div>
-                    <div class="stat-card"><h3>🛒 المحلات</h3><p id="shopCount">0</p></div>
-                    <div class="stat-card"><h3>🕌 المساجد</h3><p id="mosqueCount">0</p></div>
+                <div class="results-header">
+                    <h2 id="cityName">نتائج التحليل</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card"><h3>🏫 المدارس</h3><p id="schoolCount">0</p></div>
+                        <div class="stat-card"><h3>🏥 المستشفيات</h3><p id="hospitalCount">0</p></div>
+                        <div class="stat-card"><h3>🛒 المحلات</h3><p id="shopCount">0</p></div>
+                        <div class="stat-card"><h3>🕌 المساجد</h3><p id="mosqueCount">0</p></div>
+                    </div>
                 </div>
-
-                <div id="map"></div>
 
                 <div id="detailsSection">
                     <h3>📋 تفاصيل الخدمات</h3>
@@ -49,11 +76,13 @@
         </main>
 
         <footer>
-            <p>© 2026 Smart City Analyzer - تحليل المدن باستخدام GIS</p>
+            <p>© 2026 GIS Smart City Analyzer - نظم المعلومات الجغرافية</p>
         </footer>
     </div>
 
+    <!-- JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="script.js"></script>
 </body>
