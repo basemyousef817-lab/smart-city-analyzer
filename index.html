@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>تحليل المدن الذكية - Smart City Analyzer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <header>
+        <h1>🏙️ تحليل المدن الذكية</h1>
+        <p>أدخل اسم مدينة لتحليلها واستخراج توصيات لتطويرها</p>
+    </header>
+
+    <main>
+        <section id="searchSection">
+            <input type="text" id="cityInput" placeholder="مثال: Cairo, Nasr City, Alexandria" />
+            <button onclick="analyzeCity()">🔍 تحليل</button>
+            <button onclick="getMyLocation()">📍 موقعي</button>
+            <span id="loading" style="display:none;">⏳ جاري التحميل...</span>
+        </section>
+
+        <section id="resultsSection" style="display:none;">
+            <h2 id="cityName">نتائج التحليل</h2>
+
+            <div class="stats-grid">
+                <div class="stat-card"><h3>🏫 المدارس</h3><p id="schoolCount">0</p></div>
+                <div class="stat-card"><h3>🏥 المستشفيات</h3><p id="hospitalCount">0</p></div>
+                <div class="stat-card"><h3>🛒 المحلات</h3><p id="shopCount">0</p></div>
+                <div class="stat-card"><h3>🕌 المساجد</h3><p id="mosqueCount">0</p></div>
+            </div>
+
+            <div id="map"></div>
+
+            <div id="detailsSection">
+                <h3>📋 تفاصيل الخدمات</h3>
+                <div id="detailsContent"></div>
+            </div>
+
+            <div id="recommendations">
+                <h3>💡 التوصيات</h3>
+                <ul id="recList"></ul>
+            </div>
+
+            <button onclick="generatePDF()">📄 تحميل تقرير PDF</button>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 Smart City Analyzer - تحليل المدن باستخدام GIS</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
