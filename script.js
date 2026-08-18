@@ -4,6 +4,7 @@ let routingControl = null;
 let cityData = null;
 let selectedCoords = null;
 let autocompleteTimeout = null;
+let markersLayer = null;
 
 // ===================== شاشة الدخول =====================
 
@@ -45,7 +46,7 @@ async function loadData() {
     }
 }
 
-// ===================== البحث التلقائي (Autocomplete) =====================
+// ===================== البحث التلقائي =====================
 
 document.getElementById('cityInput').addEventListener('input', function() {
     const query = this.value.trim();
@@ -84,9 +85,7 @@ document.getElementById('cityInput').addEventListener('input', function() {
                         lat: parseFloat(place.lat),
                         lon: parseFloat(place.lon)
                     };
-                    // التمركز على المكان
                     map.flyTo([selectedCoords.lat, selectedCoords.lon], 14);
-                    // تحليل المكان
                     analyzeCity();
                 };
                 resultsContainer.appendChild(div);
@@ -174,7 +173,7 @@ function displayResults(analysis, coords, cityName) {
     document.getElementById('shopCount').textContent = analysis.shops.length;
     document.getElementById('mosqueCount').textContent = analysis.mosques.length;
 
-    // ===== عرض الجدول =====
+    // عرض الجدول
     const detailsDiv = document.getElementById('detailsContent');
     let html = `<table>
         <thead>
@@ -213,10 +212,16 @@ function displayResults(analysis, coords, cityName) {
         detailsDiv.innerHTML = html;
     }
 
-    // ===== تحديث الخريطة =====
+    // تحديث الخريطة
     map.flyTo([coords.lat, coords.lon], 13);
 
-    // ===== إضافة العلامات =====
+    // إزالة العلامات القديمة
+    if (markersLayer) {
+        map.removeLayer(markersLayer);
+    }
+    markersLayer = L.layerGroup().addTo(map);
+
+    // إضافة العلامات
     const markers = [
         { data: analysis.schools, color: '#4fc3f7', label: 'مدرسة', icon: '🏫' },
         { data: analysis.hospitals, color: '#ff6b6b', label: 'مستشفى', icon: '🏥' },
@@ -232,7 +237,7 @@ function displayResults(analysis, coords, cityName) {
                 iconSize: [30, 30],
                 iconAnchor: [15, 15]
             });
-            const marker = L.marker([el.lat, el.lon], { icon: customIcon }).addTo(map);
+            const marker = L.marker([el.lat, el.lon], { icon: customIcon }).addTo(markersLayer);
             marker.bindPopup(`
                 <b>${el.name}</b><br>
                 ${group.icon} النوع: ${group.label}<br>
@@ -242,7 +247,7 @@ function displayResults(analysis, coords, cityName) {
         });
     });
 
-    // ===== وسيلة إيضاح =====
+    // وسيلة إيضاح
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'info legend');
@@ -264,7 +269,7 @@ function displayResults(analysis, coords, cityName) {
     legend.addTo(map);
 }
 
-// ===================== تحديد المسار (Routing) =====================
+// ===================== تحديد المسار =====================
 
 function getRoute(lat, lon, name) {
     if (!navigator.geolocation) {
@@ -276,76 +281,35 @@ function getRoute(lat, lon, name) {
         position => {
             const userLat = position.coords.latitude;
             const userLon = position.coords.longitude;
-
-            if (routingControl) {
-                map.removeControl(routingControl);
-            }
-
-            routingControl = L.Routing.control({
-                waypoints: [
-                    L.latLng(userLat, userLon),
-                    L.latLng(lat, lon)
-                ],
-                routeWhileDragging: true,
-                reverseWaypoints: false,
-                showAlternatives: true,
-                altLineOptions: {
-                    styles: [
-                        { color: 'black', opacity: 0.15, weight: 9 },
-                        { color: 'white', opacity: 0.8, weight: 7 },
-                        { color: '#4fc3f7', opacity: 0.7, weight: 5 }
-                    ]
-                },
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1'
-                }),
-                language: 'ar',
-                lineOptions: {
-                    styles: [
-                        { color: '#4fc3f7', opacity: 1, weight: 5 }
-                    ]
-                }
-            }).addTo(map);
-
-            // عرض نافذة منبثقة للمسار
-            setTimeout(() => {
-                const popup = L.popup()
-                    .setLatLng([lat, lon])
-                    .setContent(`
-                        <b>${name}</b><br>
-                        🗺️ تم حساب المسار من موقعك<br>
-                        📍 المسافة: سيتم حسابها تلقائياً
-                    `)
-                    .openOn(map);
-            }, 1000);
-
+            showRoute(userLat, userLon, lat, lon, name);
         },
         error => {
-            alert('❌ فشل تحديد موقعك: ' + error.message + '\nسيتم استخدام موقع القاهرة كبداية.');
-            // استخدام القاهرة كبداية
-            if (routingControl) {
-                map.removeControl(routingControl);
-            }
-
-            routingControl = L.Routing.control({
-                waypoints: [
-                    L.latLng(30.0444, 31.2357),
-                    L.latLng(lat, lon)
-                ],
-                routeWhileDragging: true,
-                showAlternatives: true,
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1'
-                }),
-                language: 'ar',
-                lineOptions: {
-                    styles: [
-                        { color: '#4fc3f7', opacity: 1, weight: 5 }
-                    ]
-                }
-            }).addTo(map);
+            alert('❌ فشل تحديد موقعك: ' + error.message + '\nسيتم استخدام القاهرة كبداية.');
+            showRoute(30.0444, 31.2357, lat, lon, name);
         }
     );
+}
+
+function showRoute(startLat, startLon, endLat, endLon, name) {
+    if (routingControl) {
+        map.removeControl(routingControl);
+    }
+
+    routingControl = L.Routing.control({
+        waypoints: [
+            L.latLng(startLat, startLon),
+            L.latLng(endLat, endLon)
+        ],
+        routeWhileDragging: true,
+        showAlternatives: true,
+        router: L.Routing.osrmv1({
+            serviceUrl: 'https://router.project-osrm.org/route/v1'
+        }),
+        language: 'ar',
+        lineOptions: {
+            styles: [{ color: '#4fc3f7', opacity: 1, weight: 5 }]
+        }
+    }).addTo(map);
 }
 
 // ===================== مسح المسار =====================
@@ -380,30 +344,26 @@ function generateRecommendations(analysis) {
     list.innerHTML = '';
 
     const totalSchools = analysis.schools.length;
-    const totalHospitals = analysis.hospitals.length + analysis.clinics.length;
+    const totalHospitals = analysis.hospitals.length;
     const totalShops = analysis.shops.length;
     const totalMosques = analysis.mosques.length;
 
     const recs = [];
 
-    if (totalSchools < 3) recs.push('🏫 نقترح إضافة مدرسة جديدة لتغطية الاحتياج التعليمي.');
+    if (totalSchools < 3) recs.push('🏫 نقترح إضافة مدرسة جديدة.');
     else if (totalSchools < 6) recs.push('📚 عدد المدارس جيد، ننصح بتحسين الجودة.');
-    else recs.push('✅ المدارس كافية، ننصح بتطوير البنية التحتية.');
+    else recs.push('✅ المدارس كافية.');
 
-    if (totalHospitals < 2) recs.push('🏥 نقترح إنشاء مستشفى أو عيادة مركزية.');
-    else if (totalHospitals < 4) recs.push('🩺 الخدمات الصحية جيدة، ننصح بإضافة تخصصات.');
+    if (totalHospitals < 2) recs.push('🏥 نقترح إنشاء مستشفى.');
+    else if (totalHospitals < 4) recs.push('🩺 الخدمات الصحية جيدة.');
     else recs.push('✅ الخدمات الصحية ممتازة.');
 
-    if (totalShops < 5) recs.push('🛒 نقترح إنشاء مركز تجاري صغير.');
-    else if (totalShops < 10) recs.push('🛍️ المحلات جيدة، ننصح بتنويع الأنشطة.');
+    if (totalShops < 5) recs.push('🛒 نقترح إنشاء مركز تجاري.');
+    else if (totalShops < 10) recs.push('🛍️ المحلات جيدة.');
     else recs.push('✅ النشاط التجاري مزدهر.');
 
     if (totalMosques < 2) recs.push('🕌 نقترح إضافة مسجد.');
     else recs.push('✅ دور العبادة كافية.');
-
-    if (totalSchools === 0 && totalHospitals === 0 && totalShops === 0 && totalMosques === 0) {
-        recs.push('⚠️ المنطقة فقيرة بالخدمات. نوصي بخطة عاجلة للتطوير.');
-    }
 
     recs.forEach(rec => {
         const li = document.createElement('li');
@@ -463,11 +423,9 @@ function getMyLocation() {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 selectedCoords = { lat, lon };
-                document.getElementById('cityInput').value =
-                    `${lat.toFixed(5)}, ${lon.toFixed(5)} (موقعي)`;
+                document.getElementById('cityInput').value = `${lat.toFixed(5)}, ${lon.toFixed(5)} (موقعي)`;
                 map.flyTo([lat, lon], 14);
                 document.getElementById('loading').style.display = 'none';
-                // تحليل المنطقة
                 analyzeCity();
             },
             error => {
@@ -479,9 +437,3 @@ function getMyLocation() {
         alert('❌ المتصفح لا يدعم تحديد الموقع');
     }
 }
-
-// ===================== تحميل أولي =====================
-
-window.onload = function() {
-    // منع تشغيل التحميل التلقائي حتى يضغط المستخدم على زر البدء
-};
