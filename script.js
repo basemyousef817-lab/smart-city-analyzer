@@ -1,7 +1,6 @@
 // ===================== المتغيرات العامة =====================
 let map;
 let routingControl = null;
-let cityData = null;
 let selectedCoords = null;
 let autocompleteTimeout = null;
 let markersLayer = null;
@@ -12,7 +11,9 @@ function hideSplash() {
     document.getElementById('splashScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
     initMap();
-    loadData();
+    // تحميل القاهرة تلقائياً
+    document.getElementById('cityInput').value = 'Cairo';
+    setTimeout(() => analyzeCity(), 500);
 }
 
 // ===================== تهيئة الخريطة =====================
@@ -29,21 +30,6 @@ function initMap() {
         maxZoom: 19,
         minZoom: 3
     }).addTo(map);
-}
-
-// ===================== تحميل البيانات =====================
-
-async function loadData() {
-    try {
-        const response = await fetch('data.json');
-        cityData = await response.json();
-        console.log('✅ تم تحميل البيانات بنجاح');
-        document.getElementById('cityInput').value = 'Cairo';
-        setTimeout(() => analyzeCity(), 300);
-    } catch (error) {
-        console.error('❌ فشل تحميل البيانات:', error);
-        alert('❌ فشل تحميل البيانات. تأكد من اتصال الإنترنت.');
-    }
 }
 
 // ===================== البحث التلقائي =====================
@@ -98,7 +84,7 @@ document.getElementById('cityInput').addEventListener('input', function() {
     }, 300);
 });
 
-// ===================== تحليل المدينة =====================
+// ===================== تحليل المدينة (بيانات حقيقية من Overpass) =====================
 
 async function analyzeCity() {
     const cityName = document.getElementById('cityInput').value.trim();
@@ -110,36 +96,23 @@ async function analyzeCity() {
     document.getElementById('loading').style.display = 'block';
 
     try {
-        if (!cityData) {
-            await loadData();
+        // 1. جلب إحداثيات المدينة
+        const coords = await getCityCoordinates(cityName);
+        if (!coords) {
+            alert('❌ المدينة غير موجودة. تأكد من كتابة الاسم بشكل صحيح.');
+            document.getElementById('loading').style.display = 'none';
+            return;
         }
 
-        let foundCity = null;
-        let foundKey = null;
+        selectedCoords = coords;
 
-        for (const key in cityData) {
-            if (cityName.toLowerCase().includes(key.toLowerCase()) ||
-                key.toLowerCase().includes(cityName.toLowerCase())) {
-                foundCity = cityData[key];
-                foundKey = key;
-                break;
-            }
-        }
+        // 2. جلب البيانات الحقيقية من OpenStreetMap
+        const data = await fetchCityData(coords.lat, coords.lon);
 
-        if (!foundCity) {
-            foundCity = cityData.cairo;
-            foundKey = 'cairo';
-        }
+        // 3. تحليل البيانات
+        const analysis = analyzeData(data);
 
-        const analysis = {
-            schools: foundCity.schools.map(p => ({ ...p, tags: { amenity: 'school' } })),
-            hospitals: foundCity.hospitals.map(p => ({ ...p, tags: { amenity: 'hospital' } })),
-            clinics: [],
-            shops: foundCity.shops.map(p => ({ ...p, tags: { shop: 'yes' } })),
-            mosques: foundCity.mosques.map(p => ({ ...p, tags: { amenity: 'place_of_worship' } }))
-        };
-
-        const coords = selectedCoords || getCityCoords(foundKey);
+        // 4. عرض النتائج
         displayResults(analysis, coords, cityName);
         generateRecommendations(analysis);
 
@@ -151,15 +124,110 @@ async function analyzeCity() {
     }
 }
 
-// ===================== إحداثيات المدن =====================
+// ===================== جلب إحداثيات المدينة =====================
 
-function getCityCoords(cityKey) {
-    const coords = {
-        'cairo': { lat: 30.0444, lon: 31.2357 },
-        'alexandria': { lat: 31.2001, lon: 29.9187 },
-        'menouf': { lat: 30.4667, lon: 30.9333 }
+async function getCityCoordinates(cityName) {
+    const url =
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.length === 0) return null;
+
+    return {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon),
+        displayName: data[0].display_name
     };
-    return coords[cityKey] || coords.cairo;
+}
+
+// ===================== جلب البيانات من Overpass API =====================
+
+async function fetchCityData(lat, lon) {
+    const radius = 3000; // 3 كيلومتر
+
+    const query = `[out:json][timeout:25];
+    (
+        node["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
+        way["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
+        relation["amenity"~"school|hospital|clinic|place_of_worship|kindergarten|university|college"](around:${radius},${lat},${lon});
+        node["shop"](around:${radius},${lat},${lon});
+        way["shop"](around:${radius},${lat},${lon});
+        relation["shop"](around:${radius},${lat},${lon});
+    );
+    out center;`;
+
+    const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+    // محاولة جلب البيانات مباشرة (قد تنجح على GitHub Pages)
+    try {
+        const response = await fetch(overpassUrl, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (e) {
+        console.log('محاولة مباشرة فشلت، نستخدم Proxy');
+    }
+
+    // استخدام Proxy إذا فشلت المحاولة المباشرة
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(overpassUrl)}`;
+    const response = await fetch(proxyUrl);
+    if (!response.ok) {
+        throw new Error(`فشل جلب البيانات (HTTP ${response.status})`);
+    }
+    return await response.json();
+}
+
+// ===================== تحليل البيانات =====================
+
+function analyzeData(data) {
+    const analysis = {
+        schools: [],
+        hospitals: [],
+        clinics: [],
+        shops: [],
+        mosques: []
+    };
+
+    if (!data.elements || data.elements.length === 0) {
+        return analysis;
+    }
+
+    data.elements.forEach(el => {
+        if (!el.tags) return;
+
+        const tags = el.tags;
+        const amenity = tags.amenity || '';
+        const shop = tags.shop || '';
+
+        let lat = el.lat;
+        let lon = el.lon;
+        if (!lat && el.center) {
+            lat = el.center.lat;
+            lon = el.center.lon;
+        }
+        if (!lat) return;
+
+        const name = tags.name || tags['name:ar'] || tags['name:en'] || 'بدون اسم';
+
+        if (amenity === 'school' || amenity === 'kindergarten' || amenity === 'university' || amenity === 'college') {
+            analysis.schools.push({ lat, lon, name, tags });
+        } else if (amenity === 'hospital') {
+            analysis.hospitals.push({ lat, lon, name, tags });
+        } else if (amenity === 'clinic') {
+            analysis.clinics.push({ lat, lon, name, tags });
+        } else if (amenity === 'place_of_worship') {
+            analysis.mosques.push({ lat, lon, name, tags });
+        } else if (shop) {
+            analysis.shops.push({ lat, lon, name, tags });
+        }
+    });
+
+    return analysis;
 }
 
 // ===================== عرض النتائج =====================
@@ -173,7 +241,7 @@ function displayResults(analysis, coords, cityName) {
     document.getElementById('shopCount').textContent = analysis.shops.length;
     document.getElementById('mosqueCount').textContent = analysis.mosques.length;
 
-    // عرض الجدول
+    // ===== عرض الجدول =====
     const detailsDiv = document.getElementById('detailsContent');
     let html = `<table>
         <thead>
@@ -191,6 +259,7 @@ function displayResults(analysis, coords, cityName) {
     const allPlaces = [
         ...analysis.schools.map(p => ({ ...p, type: 'مدرسة', icon: '🏫' })),
         ...analysis.hospitals.map(p => ({ ...p, type: 'مستشفى', icon: '🏥' })),
+        ...analysis.clinics.map(p => ({ ...p, type: 'عيادة', icon: '🏥' })),
         ...analysis.shops.map(p => ({ ...p, type: 'محل', icon: '🛒' })),
         ...analysis.mosques.map(p => ({ ...p, type: 'مسجد', icon: '🕌' }))
     ];
@@ -212,19 +281,20 @@ function displayResults(analysis, coords, cityName) {
         detailsDiv.innerHTML = html;
     }
 
-    // تحديث الخريطة
+    // ===== تحديث الخريطة =====
     map.flyTo([coords.lat, coords.lon], 13);
 
-    // إزالة العلامات القديمة
+    // ===== إزالة العلامات القديمة =====
     if (markersLayer) {
         map.removeLayer(markersLayer);
     }
     markersLayer = L.layerGroup().addTo(map);
 
-    // إضافة العلامات
+    // ===== إضافة العلامات =====
     const markers = [
         { data: analysis.schools, color: '#4fc3f7', label: 'مدرسة', icon: '🏫' },
         { data: analysis.hospitals, color: '#ff6b6b', label: 'مستشفى', icon: '🏥' },
+        { data: analysis.clinics, color: '#f57c00', label: 'عيادة', icon: '🏥' },
         { data: analysis.shops, color: '#ffd93d', label: 'محل', icon: '🛒' },
         { data: analysis.mosques, color: '#6bcb77', label: 'مسجد', icon: '🕌' }
     ];
@@ -247,7 +317,7 @@ function displayResults(analysis, coords, cityName) {
         });
     });
 
-    // وسيلة إيضاح
+    // ===== وسيلة إيضاح =====
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'info legend');
@@ -261,6 +331,7 @@ function displayResults(analysis, coords, cityName) {
             <h4 style="margin:0 0 8px;color:#4fc3f7;">🗺️ الخدمات</h4>
             <p style="margin:4px 0;"><span style="color:#4fc3f7;">●</span> مدارس 🏫</p>
             <p style="margin:4px 0;"><span style="color:#ff6b6b;">●</span> مستشفيات 🏥</p>
+            <p style="margin:4px 0;"><span style="color:#f57c00;">●</span> عيادات 🏥</p>
             <p style="margin:4px 0;"><span style="color:#ffd93d;">●</span> محلات 🛒</p>
             <p style="margin:4px 0;"><span style="color:#6bcb77;">●</span> مساجد 🕌</p>
         `;
@@ -344,7 +415,7 @@ function generateRecommendations(analysis) {
     list.innerHTML = '';
 
     const totalSchools = analysis.schools.length;
-    const totalHospitals = analysis.hospitals.length;
+    const totalHospitals = analysis.hospitals.length + analysis.clinics.length;
     const totalShops = analysis.shops.length;
     const totalMosques = analysis.mosques.length;
 
