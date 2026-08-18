@@ -6,59 +6,76 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: #f0f2f5;
-    color: #333;
+    background: linear-gradient(135deg, #e0e7ff, #f0f2f5);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 header {
-    background: linear-gradient(135deg, #0d47a1, #1976d2);
-    color: white;
-    padding: 30px;
     text-align: center;
+    margin-bottom: 30px;
 }
 
 header h1 {
-    font-size: 32px;
+    font-size: 36px;
+    color: #0d47a1;
+    font-weight: 700;
 }
 
 header p {
-    opacity: 0.9;
+    font-size: 16px;
+    color: #555;
     margin-top: 5px;
 }
 
-main {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 0 20px;
-}
-
 #searchSection {
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    justify-content: center;
+    margin-bottom: 30px;
 }
 
 #searchSection input {
     flex: 1;
-    padding: 14px;
+    min-width: 250px;
+    padding: 14px 20px;
     border: 2px solid #ddd;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 16px;
-    min-width: 200px;
+    transition: 0.3s;
+    background: white;
+}
+
+#searchSection input:focus {
+    border-color: #1976d2;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
 }
 
 #searchSection button {
-    padding: 14px 30px;
+    padding: 14px 28px;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 16px;
     cursor: pointer;
     transition: 0.3s;
+    font-weight: 600;
 }
 
 #searchSection button:first-of-type {
@@ -66,20 +83,29 @@ main {
     color: white;
 }
 
-#searchSection button:last-of-type {
+#searchSection button:first-of-type:hover {
+    background: #0d47a1;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(25, 118, 210, 0.3);
+}
+
+.btn-location {
     background: #4CAF50;
     color: white;
 }
 
-#searchSection button:hover {
-    opacity: 0.8;
-    transform: scale(1.02);
+.btn-location:hover {
+    background: #388E3C;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
 }
 
 #loading {
     font-weight: bold;
     color: #1976d2;
     font-size: 18px;
+    display: flex;
+    align-items: center;
 }
 
 .stats-grid {
@@ -92,9 +118,16 @@ main {
 .stat-card {
     background: white;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 16px;
     text-align: center;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transition: 0.3s;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card h3 {
@@ -103,24 +136,25 @@ main {
 }
 
 .stat-card p {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: bold;
     color: #0d47a1;
 }
 
 #map {
     width: 100%;
-    height: 500px;
-    border-radius: 12px;
+    height: 450px;
+    border-radius: 16px;
     margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 #detailsSection {
     background: white;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 16px;
     margin: 20px 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 #detailsContent {
@@ -135,37 +169,38 @@ main {
 }
 
 #detailsContent th {
-    background: #1976d2;
+    background: #0d47a1;
     color: white;
-    padding: 10px;
+    padding: 12px;
     text-align: right;
     position: sticky;
     top: 0;
 }
 
 #detailsContent td {
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid #eee;
 }
 
 #detailsContent tr:hover {
-    background: #f5f5f5;
+    background: #f5f7ff;
 }
 
 .type-badge {
     display: inline-block;
-    padding: 2px 10px;
-    border-radius: 12px;
+    padding: 4px 14px;
+    border-radius: 20px;
     font-size: 12px;
     color: white;
+    font-weight: 600;
 }
 
 #recommendations {
     background: white;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 16px;
     margin: 20px 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 #recommendations ul {
@@ -174,32 +209,39 @@ main {
 }
 
 #recommendations li {
-    padding: 10px;
-    background: #e3f2fd;
-    margin: 5px 0;
-    border-radius: 8px;
+    padding: 12px 16px;
+    background: #e8f0fe;
+    margin: 8px 0;
+    border-radius: 12px;
     border-right: 4px solid #1976d2;
+    font-weight: 500;
 }
 
-button {
-    background: #1976d2;
+.btn-pdf {
+    background: #d32f2f;
     color: white;
-    padding: 12px 25px;
+    padding: 14px 30px;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 16px;
     cursor: pointer;
     transition: 0.3s;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 10px;
 }
 
-button:hover {
-    opacity: 0.8;
+.btn-pdf:hover {
+    background: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(211, 47, 47, 0.3);
 }
 
 footer {
     text-align: center;
-    padding: 20px;
-    background: #0d47a1;
-    color: white;
     margin-top: 30px;
+    color: #888;
+    font-size: 14px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
 }
